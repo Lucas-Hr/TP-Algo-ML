@@ -109,6 +109,7 @@ class Game:
         self.current_move = 0  # Index du mouvement actuel
         self.start_time = None  # Temps de départ pour le chronomètre
         self.elapsed_time = 0  # Temps écoulé
+        self.total_moves = 0 # Mouvement au total
 
     def shuffle_state(self):
         random.shuffle(self.state)
@@ -122,6 +123,13 @@ class Game:
                 if self.state[i] and self.state[j] and self.state[i] > self.state[j]:
                     inversions += 1
         return inversions % 2 == 0
+
+    def swap_tiles(self):
+        non_zero_tiles = [i for i in range(len(self.state)) if self.state[i] != 0]
+        if len(non_zero_tiles) < 2:
+            return
+        a, b = random.sample(non_zero_tiles, 2)
+        self.state[a], self.state[b] = self.state[b], self.state[a]
 
     def solve(self):
         # Résolution du puzzle avec A*
@@ -177,6 +185,10 @@ class Game:
         if self.current_move < len(self.moves):
             self.state = self.moves[self.current_move]
             self.current_move += 1
+            self.total_moves += 1
+
+            if self.k > 0 and self.total_moves % self.k == 0:
+                self.swap_tiles()
 
     def run(self):
         self.solve()  # Solve the puzzle with A*
