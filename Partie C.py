@@ -7,13 +7,13 @@ from pygame.locals import *
 
 # -------------------- Classe Noeud pour la résolution automatique -------------------- #
 class Noeud:
-    def __init__(self, state, pred=None, g=0, h=0):
+    def __init__(self, state, size, pred=None, g=0, h=0):
         self.state = state  # État actuel du puzzle
         self.pred = pred  # Noeud prédécesseur
         self.succ = []  # Successeurs
         self.g = g  # Coût accumulé
         self.h = h  # Estimation heuristique
-        self.size = pred.size if pred else 3  # Définir la taille par défaut ou à partir du prédécesseur
+        self.size = size  # Définir la taille
 
     def getSucc(self):
         succ = []
@@ -28,7 +28,7 @@ class Noeud:
                 new_index = new_row * self.size + new_col
                 new_state = self.state[:]
                 new_state[zero_index], new_state[new_index] = new_state[new_index], new_state[zero_index]
-                succ.append(Noeud(new_state, pred=self))
+                succ.append(Noeud(new_state, size=self.size, pred=self))
         return succ
 
     def isSuccess(self):
@@ -133,7 +133,7 @@ class Game:
 
     def solve(self):
         # Résolution du puzzle avec A*
-        depart = Noeud(self.state)  # Le paramètre size n'est plus nécessaire ici
+        depart = Noeud(self.state, size=self.size)
         solution = a_star(depart)
         if solution:
             # On sauvegarde la solution comme liste de mouvements
@@ -280,14 +280,14 @@ class Menu:
                             self.selected_size = 4
                             Game(size=4, k=0).run()
                             self.running = False
-                    elif self.selected_size == 3:
+                    elif self.selected_size in [3, 4]:
                         if 100 < x < 300 and 100 < y < 150:  # Choisir K=0
                             self.selected_k = 0
-                            Game(size=3, k=0).run()
+                            Game(size=self.selected_size, k=0).run()
                             self.running = False
                         elif 100 < x < 300 and 200 < y < 250:  # Choisir K=10
                             self.selected_k = 10
-                            Game(size=3, k=10).run()
+                            Game(size=self.selected_size, k=10).run()
                             self.running = False
 
             self.draw(k_selection=self.selected_size == 3)
