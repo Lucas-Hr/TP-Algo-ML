@@ -275,23 +275,22 @@ class Menu:
                     if not self.selected_size:
                         if 100 < x < 300 and 100 < y < 150:  # Puzzle 3x3
                             self.selected_size = 3
-                            self.selected_k = None
                             self.draw(k_selection=True)
                         elif 100 < x < 300 and 200 < y < 250:  # Puzzle 4x4
                             self.selected_size = 4
-                            self.selected_k = None
-                            self.draw(k_selection=True)
-                    elif self.selected_size:
+                            Game(size=4, k=0).run()
+                            self.running = False
+                    elif self.selected_size == 3:
                         if 100 < x < 300 and 100 < y < 150:  # Choisir K=0
                             self.selected_k = 0
-                            Game(size=self.selected_size, k=self.selected_k).run()
+                            Game(size=3, k=0).run()
                             self.running = False
                         elif 100 < x < 300 and 200 < y < 250:  # Choisir K=10
                             self.selected_k = 10
-                            Game(size=self.selected_size, k=self.selected_k).run()
+                            Game(size=3, k=10).run()
                             self.running = False
 
-            self.draw(k_selection=self.selected_size is not None)
+            self.draw(k_selection=self.selected_size == 3)
             pygame.display.flip()
             self.clock.tick(30)
 
