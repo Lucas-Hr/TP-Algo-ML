@@ -4,8 +4,6 @@ import random
 import csv
 import time
 from pygame.locals import *
-import logging
-logging.basicConfig(level=logging.INFO, filename="game_debug.log", filemode="w")
 
 # -------------------- Classe Noeud pour la résolution automatique -------------------- #
 class Noeud:
@@ -258,13 +256,13 @@ class Game:
             self.elapsed_time = int(time.time() - self.start_time)
             self.draw_tiles()
             pygame.display.flip()
-            pygame.time.wait(1000)
+            pygame.time.wait(300)
             self.clock.tick(30)
     
+        pygame.time.wait(5000)
         pygame.quit()
         
     def write_to_csv(self, moves, time, status):
-        logging.info(f"Écriture des données : {self.size}, {self.k}, {moves}, {time}, {status}")
         # Toujours ajouter un en-tête si le fichier est vide
         header = ["Puzzle Size", "K Value", "Moves", "Time (seconds)", "Solved Status"]
         file_exists = False
