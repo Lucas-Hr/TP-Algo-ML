@@ -4,6 +4,8 @@ import random
 import csv
 import time
 from pygame.locals import *
+import logging
+logging.basicConfig(level=logging.INFO, filename="game_debug.log", filemode="w")
 
 # -------------------- Classe Noeud pour la résolution automatique -------------------- #
 class Noeud:
@@ -28,7 +30,10 @@ class Noeud:
                 new_index = new_row * self.size + new_col
                 new_state = self.state[:]
                 new_state[zero_index], new_state[new_index] = new_state[new_index], new_state[zero_index]
-                succ.append(Noeud(new_state, size=self.size, pred=self))
+                
+                # Ajoutez uniquement des états uniques
+                if new_state != self.state:
+                    succ.append(Noeud(new_state, size=self.size, pred=self))
         return succ
 
     def isSuccess(self):
@@ -48,27 +53,38 @@ def heuristic(node):
         if value != 0:
             goal_index = goal.index(value)
             distance += abs(i // node.size - goal_index // node.size) + abs(i % node.size - goal_index % node.size)
-    return distance
+    return distance * 2  # Appliquez un facteur pour rendre l'heuristique plus "agressive"
 
 
-def a_star(depart):
+def a_star(depart, max_nodes=100000):
     open_list = []
     closed_list = set()
     heapq.heappush(open_list, depart)
+    nodes_explored = 0
 
     while open_list:
+        if nodes_explored > max_nodes:
+            print(f"Limite atteinte après {nodes_explored} nœuds explorés.")
+            return None
+            
         current = heapq.heappop(open_list)
         if current.isSuccess():
+            print(f"Solution trouvée après {nodes_explored} nœuds explorés.")
             return current
 
         closed_list.add(tuple(current.state))
+        nodes_explored += 1
+
+        if nodes_explored % 1000 == 0:
+            print(f"Nœuds explorés : {nodes_explored}")
 
         for succ in current.getSucc():
             if tuple(succ.state) not in closed_list:
                 succ.g = current.g + 1
                 succ.h = heuristic(succ)
                 heapq.heappush(open_list, succ)
-
+                
+    print(f"Échec : exploration terminée après {nodes_explored} nœuds.")
     return None
 
 
@@ -96,7 +112,7 @@ class Game:
         pygame.init()
         self.size = size
         self.k = k
-        self.screen_size = (self.size * 90 + 10, self.size * 90 + 160)
+        self.screen_size = (self.size * 120, self.size * 120 + 200)
         self.screen = pygame.display.set_mode(self.screen_size)
         pygame.display.set_caption(f"Jeu de Taquin {self.size}x{self.size}")
         self.clock = pygame.time.Clock()
@@ -112,9 +128,36 @@ class Game:
         self.total_moves = 0 # Mouvement au total
 
     def shuffle_state(self):
-        random.shuffle(self.state)
-        while not self.is_solvable():
-            random.shuffle(self.state)
+        # Génère un état solvable en effectuant des déplacements aléatoires depuis l'état résolu
+        moves = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        state = self.goal[:]
+        zero_index = state.index(0)
+        for _ in range(self.size * self.size * 10):  # Effectuer un grand nombre de mouvements aléatoires
+            row, col = divmod(zero_index, self.size)
+            valid_moves = []
+            for dr, dc in moves:
+                new_row, new_col = row + dr, col + dc
+                if 0 <= new_row < self.size and 0 <= new_col < self.size:
+                    valid_moves.append((new_row, new_col))
+            if valid_moves:
+                new_row, new_col = random.choice(valid_moves)
+                new_index = new_row * self.size + new_col
+                state[zero_index], state[new_index] = state[new_index], state[zero_index]
+                zero_index = new_index
+        self.state = state
+
+
+    def calculate_complexity(self):
+        # Utilisation d'un tableau pré-calculé pour la position finale des éléments
+        goal_positions = {value: (i // self.size, i % self.size) for i, value in enumerate(self.goal)}
+        distance = 0
+        for i, value in enumerate(self.state):
+            if value != 0:
+                current_row, current_col = divmod(i, self.size)
+                goal_row, goal_col = goal_positions[value]
+                distance += abs(current_row - goal_row) + abs(current_col - goal_col)
+        return distance
+    
 
     def is_solvable(self):
         inversions = 0
@@ -132,18 +175,18 @@ class Game:
         self.state[a], self.state[b] = self.state[b], self.state[a]
 
     def solve(self):
-        # Résolution du puzzle avec A*
+        print("État initial :", self.state)
         depart = Noeud(self.state, size=self.size)
         solution = a_star(depart)
         if solution:
-            # On sauvegarde la solution comme liste de mouvements
             moves = []
             current_node = solution
             while current_node.pred is not None:
                 moves.append(current_node.state)
                 current_node = current_node.pred
             moves.reverse()
-            self.moves = moves  # Solution trouvée par A*
+            self.moves = moves
+            print(f"Solution trouvée en {len(moves)} étapes.")
         else:
             print("Pas de solution trouvée.")
 
@@ -151,12 +194,13 @@ class Game:
         self.screen.fill((255, 255, 255))
         for i in range(self.size):
             for j in range(self.size):
+                assert i < self.size and j < self.size, "Index hors limites"
                 tile = self.state[i * self.size + j]
                 if tile != 0:
-                    pygame.draw.rect(self.screen, (0, 0, 255), (j * 90 + 5, i * 90 + 5, 80, 80))
-                    font = pygame.font.Font(None, 50)
+                    pygame.draw.rect(self.screen, (0, 0, 255), (j * 100 + 5, i * 100 + 5, 90, 90))
+                    font = pygame.font.Font(None, 50 if self.size == 3 else 40)
                     text = font.render(str(tile), True, (255, 255, 255))
-                    self.screen.blit(text, (j * 90 + 30, i * 90 + 30))
+                    self.screen.blit(text, (j * 100 + 35, i * 100 + 35))
     
         # Afficher les statistiques : nombre de mouvements, temps écoulé
         font = pygame.font.Font(None, 30)
@@ -191,51 +235,50 @@ class Game:
                 self.swap_tiles()
 
     def run(self):
-        self.solve()  # Solve the puzzle with A*
-        self.start_time = time.time()  # Start timer when the game starts
+        self.solve()
+        self.start_time = time.time()
         running = True
+    
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
     
-            # Make a move if the puzzle is not solved
-            if not self.is_solved():
+            if self.current_move < len(self.moves):
                 self.make_move()
-                # Update the elapsed time only if the puzzle is not solved
-                self.elapsed_time = int(time.time() - self.start_time)
+            else:
+                # Fin du jeu, enregistrer les données si non fait
+                if not hasattr(self, 'finished_time'):
+                    self.finished_time = self.elapsed_time
+                    self.final_moves = self.total_moves
+                    self.solved_status = "Solved" if self.is_solved() else "Not Solved"
+                    self.write_to_csv(self.final_moves, self.finished_time, self.solved_status)
+                running = False  # Quitter la boucle une fois terminé
     
-            # Stop updating time once solved
-            if self.is_solved() and not hasattr(self, 'finished_time'):
-                self.finished_time = self.elapsed_time  # Store final time when puzzle is solved
-                self.final_moves = self.current_move  # Store the final number of moves
-                self.solved_status = "Solved"  # Mark the puzzle as solved
-    
-                # Write the result to a CSV file
-                self.write_to_csv(self.final_moves, self.finished_time, self.solved_status)
-    
-            self.draw_tiles()  # Update the display
+            self.elapsed_time = int(time.time() - self.start_time)
+            self.draw_tiles()
             pygame.display.flip()
-            pygame.time.wait(500)  # Wait a bit before doing the next move
+            pygame.time.wait(1000)
             self.clock.tick(30)
     
         pygame.quit()
         
     def write_to_csv(self, moves, time, status):
-        # Check if the file is empty, and if so, write the header
+        logging.info(f"Écriture des données : {self.size}, {self.k}, {moves}, {time}, {status}")
+        # Toujours ajouter un en-tête si le fichier est vide
+        header = ["Puzzle Size", "K Value", "Moves", "Time (seconds)", "Solved Status"]
+        file_exists = False
         try:
-            with open('game_results.csv', mode='r') as file:
-                if file.read(1):
-                    pass  # The file is not empty, so don't write a header
+            with open('game_results.csv', 'r') as file:
+                file_exists = file.read(1)  # Vérifie si le fichier a du contenu
         except FileNotFoundError:
-            # File does not exist, create it and add the header row
-            with open('game_results.csv', mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(["Puzzle Size", "K Value", "Moves", "Time (seconds)", "Solved Status"])
+            pass  # Le fichier sera créé ci-dessous
     
-        # Now append the result to the CSV file
+        # Ajout des résultats
         with open('game_results.csv', mode='a', newline='') as file:
             writer = csv.writer(file)
+            if not file_exists:
+                writer.writerow(header)
             writer.writerow([self.size, self.k, moves, time, status])
 
 
@@ -278,17 +321,16 @@ class Menu:
                             self.draw(k_selection=True)
                         elif 100 < x < 300 and 200 < y < 250:  # Puzzle 4x4
                             self.selected_size = 4
-                            Game(size=4, k=0).run()
-                            self.running = False
+                            self.draw(k_selection=True)  # Afficher la sélection de k
                     elif self.selected_size in [3, 4]:
                         if 100 < x < 300 and 100 < y < 150:  # Choisir K=0
                             self.selected_k = 0
                             Game(size=self.selected_size, k=0).run()
-                            self.running = False
+                            return
                         elif 100 < x < 300 and 200 < y < 250:  # Choisir K=10
                             self.selected_k = 10
                             Game(size=self.selected_size, k=10).run()
-                            self.running = False
+                            return
 
             self.draw(k_selection=self.selected_size == 3)
             pygame.display.flip()
