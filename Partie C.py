@@ -47,11 +47,34 @@ class Noeud:
 def heuristic(node):
     goal = list(range(1, node.size * node.size)) + [0]
     distance = 0
+    size = node.size
+
+    # Calcul de la distance Manhattan
     for i, value in enumerate(node.state):
         if value != 0:
             goal_index = goal.index(value)
             distance += abs(i // node.size - goal_index // node.size) + abs(i % node.size - goal_index % node.size)
-    return distance * 2  # Appliquez un facteur pour rendre l'heuristique plus "agressive"
+    
+    # Ajout des conflits linéaires
+    for row in range(size):
+        row_values = node.state[row * size:(row + 1) * size]
+        goal_row_values = goal[row * size:(row + 1) * size]
+        for value in row_values:
+            if value in goal_row_values:
+                for other in row_values:
+                    if other in goal_row_values and row_values.index(value) > row_values.index(other) and goal_row_values.index(value) < goal_row_values.index(other):
+                        distance += 2
+
+    for col in range(size):
+        col_values = node.state[col::size]
+        goal_col_values = goal[col::size]
+        for value in col_values:
+            if value in goal_col_values:
+                for other in col_values:
+                    if other in goal_col_values and col_values.index(value) > col_values.index(other) and goal_col_values.index(value) < goal_col_values.index(other):
+                        distance += 2
+
+    return distance
 
 
 def a_star(depart, max_nodes=100000):
@@ -143,7 +166,12 @@ class Game:
                 new_index = new_row * self.size + new_col
                 state[zero_index], state[new_index] = state[new_index], state[zero_index]
                 zero_index = new_index
+        
         self.state = state
+        # Assurez-vous que l'état est résolvable
+        if not self.is_solvable():
+            # Échange simple pour corriger la parité des inversions
+            self.state[0], self.state[1] = self.state[1], self.state[0]
 
 
     def calculate_complexity(self):
