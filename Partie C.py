@@ -218,9 +218,12 @@ class Game:
             (0, 128, 0) if self.is_solved() else (255, 0, 0)
         )
     
-        self.screen.blit(move_text, (10, self.size * 90 + 10))
-        self.screen.blit(time_text, (10, self.size * 90 + 40))
-        self.screen.blit(solved_text, (10, self.size * 90 + 70))
+        # Position des textes : plus bas sous le puzzle
+        offset_y = self.size * 100 + 20  # Espace entre le puzzle et les textes
+        
+        self.screen.blit(move_text, (10, offset_y))
+        self.screen.blit(time_text, (10, offset_y + 40))
+        self.screen.blit(solved_text, (10, offset_y + 70))
     
         pygame.display.flip()
 
@@ -260,7 +263,7 @@ class Game:
             self.elapsed_time = int(time.time() - self.start_time)
             self.draw_tiles()
             pygame.display.flip()
-            pygame.time.wait(1000)
+            pygame.time.wait(500)
             self.clock.tick(30)
     
         pygame.time.wait(5000)
@@ -287,13 +290,14 @@ class Game:
 class Menu:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((400, 300))
+        self.screen = pygame.display.set_mode((400, 400))
         pygame.display.set_caption("Menu de sélection")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 60)
+        self.font = pygame.font.Font(None, 50)
         self.running = True
         self.selected_size = None
-        self.selected_k = None  # Valeur de k (0 ou 10)
+        self.selected_k = None  # Valeur de k (0 à 10)
+        self.k_boxes = []  # Liste des positions des cases pour `k`
 
     def draw(self, k_selection=False):
         self.screen.fill((30, 30, 30))
@@ -304,10 +308,27 @@ class Menu:
             self.screen.blit(text_3x3, (100, 100))
             self.screen.blit(text_4x4, (100, 200))
         else:
-            text_k0 = self.font.render("K=0", True, (255, 255, 255))
-            text_k10 = self.font.render("K=10", True, (255, 255, 255))
-            self.screen.blit(text_k0, (100, 100))
-            self.screen.blit(text_k10, (100, 200))
+            # Ajouter le texte "Valeur de k"
+            label = self.font.render("Valeur de k", True, (255, 255, 255))
+            label_rect = label.get_rect(center=(200, 30))  # Centrer horizontalement
+            self.screen.blit(label, label_rect)
+
+            # Afficher les cases de k
+            self.k_boxes = []
+            for i, k in enumerate(range(11)):  # k de 0 à 10
+                box_x = 150
+                box_y = 50 + i * 30  # Espacement vertical entre les cases
+                box_width = 100
+                box_height = 25
+
+                # Dessiner une case
+                pygame.draw.rect(self.screen, (200, 200, 200), (box_x, box_y, box_width, box_height))
+                text = self.font.render(str(k), True, (0, 0, 0))
+                text_rect = text.get_rect(center=(box_x + box_width // 2, box_y + box_height // 2))
+                self.screen.blit(text, text_rect)
+
+                # Stocker les coordonnées de la case
+                self.k_boxes.append((box_x, box_y, box_width, box_height, k))
 
     def run(self):
         while self.running:
@@ -324,17 +345,15 @@ class Menu:
                         elif 100 < x < 300 and 200 < y < 250:  # Puzzle 4x4
                             self.selected_size = 4
                             self.draw(k_selection=True)  # Afficher la sélection de k
-                    elif self.selected_size in [3, 4]:
-                        if 100 < x < 300 and 100 < y < 150:  # Choisir K=0
-                            self.selected_k = 0
-                            Game(size=self.selected_size, k=0).run()
-                            return
-                        elif 100 < x < 300 and 200 < y < 250:  # Choisir K=10
-                            self.selected_k = 10
-                            Game(size=self.selected_size, k=10).run()
-                            return
+                    elif self.selected_size:
+                         # Vérifier si un clic a été fait sur une case de k
+                        for box_x, box_y, box_width, box_height, k in self.k_boxes:
+                            if box_x <= x <= box_x + box_width and box_y <= y <= box_y + box_height:
+                                self.selected_k = k
+                                Game(size=self.selected_size, k=self.selected_k).run()
+                                return
 
-            self.draw(k_selection=self.selected_size == 3)
+            self.draw(k_selection=self.selected_size is not None)
             pygame.display.flip()
             self.clock.tick(30)
 
