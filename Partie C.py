@@ -172,19 +172,17 @@ class Game:
         if not self.is_solvable():
             # Échange simple pour corriger la parité des inversions
             self.state[0], self.state[1] = self.state[1], self.state[0]
-
-
-    def calculate_complexity(self):
-        # Utilisation d'un tableau pré-calculé pour la position finale des éléments
-        goal_positions = {value: (i // self.size, i % self.size) for i, value in enumerate(self.goal)}
+    
+    @staticmethod
+    def calculate_complexity_static(state, goal, size):
+        goal_positions = {value: (i // size, i % size) for i, value in enumerate(goal)}
         distance = 0
-        for i, value in enumerate(self.state):
+        for i, value in enumerate(state):
             if value != 0:
-                current_row, current_col = divmod(i, self.size)
+                current_row, current_col = divmod(i, size)
                 goal_row, goal_col = goal_positions[value]
                 distance += abs(current_row - goal_row) + abs(current_col - goal_col)
         return distance
-    
 
     def is_solvable(self):
         inversions = 0
@@ -195,14 +193,34 @@ class Game:
         return inversions % 2 == 0
 
     def swap_tiles(self):
-        non_zero_tiles = [i for i in range(len(self.state)) if self.state[i] != 0]
-        if len(non_zero_tiles) >= 2:
-            while True:
-                a, b = random.sample(non_zero_tiles, 2)
-                if self.last_swap != (a, b) and self.last_swap != (b, a):
-                    self.state[a], self.state[b] = self.state[b], self.state[a]
-                    self.last_swap = (a, b)  # Enregistrer cet échange comme le dernier
-                    break
+        # Identifier les indices des cases mal positionnées
+        wrong_positions = [i for i in range(len(self.state)) if self.state[i] != 0 and self.state[i] != self.goal[i]]
+
+        if len(wrong_positions) >= 2:
+            best_gain = -float('inf')  # Gain maximal initialisé à une valeur négative infinie
+            best_swap = None
+
+            # Tester tous les échanges possibles entre deux cases mal positionnées
+            for i in range(len(wrong_positions)):
+                for j in range(i + 1, len(wrong_positions)):
+                    a, b = wrong_positions[i], wrong_positions[j]
+                    # Simuler un échange
+                    new_state = self.state[:]
+                    new_state[a], new_state[b] = new_state[b], new_state[a]
+                    
+                    # Calculer le gain heuristique après l'échange
+                    current_heuristic = self.calculate_complexity()
+                    new_heuristic = Game.calculate_complexity_static(new_state, self.goal, self.size)
+                    gain = current_heuristic - new_heuristic
+                    
+                    if gain > best_gain:
+                        best_gain = gain
+                        best_swap = (a, b)
+
+            # Effectuer l'échange optimal
+            if best_swap:
+                a, b = best_swap
+                self.state[a], self.state[b] = self.state[b], self.state[a]
 
     def solve(self):
         print("État initial :", self.state)
