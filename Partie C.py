@@ -124,6 +124,7 @@ class Game:
         self.start_time = None  # Temps de départ pour le chronomètre
         self.elapsed_time = 0  # Temps écoulé
         self.total_moves = 0 # Mouvement au total
+        self.last_swap = None  # Initialisation pour garder une trace du dernier échange
 
     def shuffle_state(self):
         # Génère un état solvable en effectuant des déplacements aléatoires depuis l'état résolu
@@ -167,10 +168,13 @@ class Game:
 
     def swap_tiles(self):
         non_zero_tiles = [i for i in range(len(self.state)) if self.state[i] != 0]
-        if len(non_zero_tiles) < 2:
-            return
-        a, b = random.sample(non_zero_tiles, 2)
-        self.state[a], self.state[b] = self.state[b], self.state[a]
+        if len(non_zero_tiles) >= 2:
+            while True:
+                a, b = random.sample(non_zero_tiles, 2)
+                if self.last_swap != (a, b) and self.last_swap != (b, a):
+                    self.state[a], self.state[b] = self.state[b], self.state[a]
+                    self.last_swap = (a, b)  # Enregistrer cet échange comme le dernier
+                    break
 
     def solve(self):
         print("État initial :", self.state)
@@ -256,7 +260,7 @@ class Game:
             self.elapsed_time = int(time.time() - self.start_time)
             self.draw_tiles()
             pygame.display.flip()
-            pygame.time.wait(300)
+            pygame.time.wait(1000)
             self.clock.tick(30)
     
         pygame.time.wait(5000)
