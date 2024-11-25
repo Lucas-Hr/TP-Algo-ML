@@ -20,4 +20,8 @@ Puzzle Size,K Value,Moves,Time (seconds),Solved Status
 3,10,23,0,Solved
 3,10,11,5,Solved
 3,0,22,10,Solved
-3,10,22,10,Solved
+4,10,38,37,Solved
+3,0,22,6,Solved
+3,10,22,6,Solved
+4,10,28,8,Solved
+4,10,50,15,Not Solved
